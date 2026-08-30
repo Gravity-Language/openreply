@@ -15,15 +15,23 @@ interface HealthCheck {
   detail?: string;
 }
 
+const exposeDiagnosticDetails = process.env.NODE_ENV !== "production";
+
+function failedCheck(error: unknown, fallback: string): HealthCheck {
+  return {
+    status: "error",
+    ...(exposeDiagnosticDetails
+      ? { detail: error instanceof Error ? error.message : fallback }
+      : {}),
+  };
+}
+
 async function checkDatabase(): Promise<HealthCheck> {
   try {
     await prisma.$queryRaw`SELECT 1`;
     return { status: "ok" };
   } catch (error) {
-    return {
-      status: "error",
-      detail: error instanceof Error ? error.message : "Database check failed",
-    };
+    return failedCheck(error, "Database check failed");
   }
 }
 
@@ -32,10 +40,7 @@ async function checkRedis(): Promise<HealthCheck> {
     const pong = await getRedisConnection().ping();
     return { status: pong === "PONG" ? "ok" : "error", detail: pong };
   } catch (error) {
-    return {
-      status: "error",
-      detail: error instanceof Error ? error.message : "Redis check failed",
-    };
+    return failedCheck(error, "Redis check failed");
   }
 }
 
@@ -49,10 +54,7 @@ async function checkQueue(): Promise<HealthCheck & { counts?: unknown }> {
     );
     return { status: "ok", counts };
   } catch (error) {
-    return {
-      status: "error",
-      detail: error instanceof Error ? error.message : "Queue check failed",
-    };
+    return failedCheck(error, "Queue check failed");
   }
 }
 
@@ -75,6 +77,13 @@ export async function GET() {
     queue.status === "ok" &&
     worker.healthy;
 
+  const workerCheck = exposeDiagnosticDetails
+    ? worker
+    : {
+        healthy: worker.healthy,
+        ageMs: worker.ageMs,
+      };
+
   return NextResponse.json(
     {
       status: healthy ? "ok" : "degraded",
@@ -82,7 +91,7 @@ export async function GET() {
         database,
         redis,
         queue,
-        worker,
+        worker: workerCheck,
       },
     },
     { status: healthy ? 200 : 503 }

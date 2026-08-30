@@ -1,0 +1,123 @@
+name: openreply
+
+x-app-service: &app-service
+  image: ${OPENREPLY_IMAGE:?Set OPENREPLY_IMAGE in the production environment}
+  env_file:
+    - ${OPENREPLY_ENV_FILE:-/etc/openreply/openreply.env}
+  environment: &app-environment
+    DATABASE_URL: postgresql://openreply:${POSTGRES_PASSWORD}@postgres:5432/openreply
+    REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+  networks:
+    - backend
+
+services:
+  postgres:
+    image: postgres:16-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: openreply
+      POSTGRES_USER: openreply
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U openreply -d openreply"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - backend
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD}
+    command:
+      - sh
+      - -c
+      - exec redis-server --appendonly yes --appendfsync everysec --requirepass "$${REDIS_PASSWORD}"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$${REDIS_PASSWORD}\" ping 2>/dev/null | grep -q PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - backend
+
+  migrate:
+    <<: *app-service
+    profiles: ["tools"]
+    restart: "no"
+    command: ["npm", "run", "db:migrate"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    <<: *app-service
+    restart: unless-stopped
+    command: ["npm", "run", "start"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "http://127.0.0.1:3000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  worker:
+    <<: *app-service
+    restart: unless-stopped
+    command: ["npm", "run", "worker"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  cron:
+    <<: *app-service
+    restart: unless-stopped
+    command: ["sh", "scripts/cron.sh"]
+    environment:
+      <<: *app-environment
+      CRON_BASE_URL: http://web:3000
+    depends_on:
+      web:
+        condition: service_healthy
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?Set APP_DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      web:
+        condition: service_started
+    networks:
+      - backend
+
+networks:
+  backend:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  redis-data:
+  caddy-data:
+  caddy-config:

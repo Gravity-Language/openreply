@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 interface InvitationAcceptCardProps {
@@ -13,6 +14,7 @@ export default function InvitationAcceptCard({
   isSignedIn,
   invitedEmail,
 }: InvitationAcceptCardProps) {
+  const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -26,7 +28,7 @@ export default function InvitationAcceptCard({
     });
     const payload = await response.json();
     if (payload.success) {
-      window.location.assign("/dashboard");
+      router.replace("/dashboard");
       return;
     }
     setMessage(payload.error ?? "Could not accept invitation");
@@ -61,4 +63,3 @@ export default function InvitationAcceptCard({
     </div>
   );
 }
-

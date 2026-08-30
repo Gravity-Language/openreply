@@ -1,0 +1,8 @@
+[Unit]
+Description=Back up OpenReply PostgreSQL to Cloud Storage
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/openreply/scripts/gcp/backup.sh

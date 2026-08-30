@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily OpenReply PostgreSQL backup
+
+[Timer]
+OnCalendar=*-*-* 04:15:00 UTC
+Persistent=true
+RandomizedDelaySec=900
+
+[Install]
+WantedBy=timers.target

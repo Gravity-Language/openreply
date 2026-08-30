@@ -8,7 +8,7 @@
 #             the `@/*` path alias tsx resolves at runtime)
 #   - cron:   `sh scripts/cron.sh` → the scheduler for /api/cron, which nothing
 #             runs off Vercel (see docs/deploy-dokploy.md). It needs scripts/
-#             in the image and wget on PATH; node:20-slim ships neither.
+#             in the image and wget on PATH; node:22-bookworm-slim ships neither.
 #
 # next.config.ts does not set `output: "standalone"`, so `next start` already
 # requires the full node_modules tree at runtime — there is no slimmer
@@ -18,8 +18,14 @@
 # `@/lib/...` imports, because tsx has no tsconfig to resolve the alias
 # against, and no app/generated/prisma to import from).
 
-FROM node:20-slim AS build
+FROM node:22-bookworm-slim AS build
 WORKDIR /app
+
+# Prisma detects the OpenSSL ABI while generating its client. Install OpenSSL
+# in the build stage so it does not silently generate against the wrong ABI.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends openssl ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
 
 COPY package.json package-lock.json ./
 RUN npm ci
@@ -29,30 +35,32 @@ COPY . .
 # generates app/generated/prisma AND compiles .next/ in one step.
 RUN npm run build
 
-FROM node:20-slim AS runner
+FROM node:22-bookworm-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
 
-# scripts/cron.sh calls the /api/cron routes with wget, which node:20-slim does
-# not include.
+# scripts/cron.sh calls the /api/cron routes with wget, which the slim Node
+# image does not include.
 RUN apt-get update \
- && apt-get install -y --no-install-recommends wget ca-certificates \
+ && apt-get install -y --no-install-recommends wget ca-certificates openssl \
  && rm -rf /var/lib/apt/lists/*
 
-COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/.next ./.next
-COPY --from=build /app/app/generated ./app/generated
-COPY --from=build /app/public ./public
-COPY --from=build /app/lib ./lib
-COPY --from=build /app/worker ./worker
-COPY --from=build /app/prisma ./prisma
-COPY --from=build /app/scripts ./scripts
-COPY --from=build /app/prisma.config.ts ./prisma.config.ts
-COPY --from=build /app/next.config.ts ./next.config.ts
-COPY --from=build /app/tsconfig.json ./tsconfig.json
-COPY --from=build /app/package.json ./package.json
+COPY --chown=node:node --from=build /app/node_modules ./node_modules
+COPY --chown=node:node --from=build /app/.next ./.next
+COPY --chown=node:node --from=build /app/app/generated ./app/generated
+COPY --chown=node:node --from=build /app/public ./public
+COPY --chown=node:node --from=build /app/lib ./lib
+COPY --chown=node:node --from=build /app/worker ./worker
+COPY --chown=node:node --from=build /app/prisma ./prisma
+COPY --chown=node:node --from=build /app/scripts ./scripts
+COPY --chown=node:node --from=build /app/prisma.config.ts ./prisma.config.ts
+COPY --chown=node:node --from=build /app/next.config.ts ./next.config.ts
+COPY --chown=node:node --from=build /app/tsconfig.json ./tsconfig.json
+COPY --chown=node:node --from=build /app/package.json ./package.json
 
 EXPOSE 3000
+USER node
 # Default to the web process — the worker service overrides this with
 # `command: ["npm", "run", "worker"]` in whatever compose/stack file deploys
 # it (see openreply-vps.stack.yml in EvolutionAPI/omni-nexus for an example).

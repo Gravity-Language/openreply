@@ -84,6 +84,10 @@ Two processes, always. `npm run dev` serves the app and receives webhooks. `npm 
 
 Full environment variables and the production layout are in [docs/setup.md](docs/setup.md).
 
+For a single-VM deployment on Google Cloud, including Docker Compose, Caddy,
+Secret Manager, Artifact Registry, and off-VM backups, see
+[docs/setup-gcp.md](docs/setup-gcp.md).
+
 ## Set it up with your AI assistant
 
 If you use Claude Code, Cursor, or a similar tool, the Meta setup is a lot faster with an assistant driving it. There is a ready-made prompt in the [Set it up with an AI assistant](docs/setup.md#set-it-up-with-an-ai-assistant) section of the setup guide. Paste it into your assistant inside a clone of this repo, hand over your keys as it asks, and it will walk you through connecting Instagram and going live.
