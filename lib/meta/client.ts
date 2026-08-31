@@ -551,8 +551,16 @@ export async function getConversationMessages(
   return data.messages?.data ?? [];
 }
 
-export async function getUserInfo(accessToken: string): Promise<InstagramUser> {
-  const url = new URL(`${instagramGraphBase()}/me`);
+export async function getUserInfo(
+  accessToken: string,
+  instagramUserId?: string
+): Promise<InstagramUser> {
+  // Business Login returns the professional account ID with the OAuth code
+  // exchange. `/me` is not supported by that token type, so callers that have
+  // the ID should use it explicitly.
+  const url = new URL(
+    `${instagramGraphBase()}/${instagramUserId ?? "me"}`
+  );
   url.searchParams.set(
     "fields",
     "id,user_id,username,name,profile_picture_url,followers_count"
