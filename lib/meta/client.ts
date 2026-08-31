@@ -1,7 +1,10 @@
 import { getMetaGraphApiVersion, requireEnv } from "@/lib/env";
 
 function instagramGraphBase() {
-  return `https://graph.instagram.com/${getMetaGraphApiVersion()}`;
+  // Instagram API with Instagram Login uses the unversioned Instagram Graph
+  // host. Versioned paths (for example `/v25.0/me`) are rejected for these
+  // tokens, even though Facebook Graph endpoints remain versioned.
+  return "https://graph.instagram.com";
 }
 
 function facebookGraphBase() {
@@ -714,21 +717,12 @@ export async function getFollowerCountSeries(
 export async function getLongLivedToken(
   shortLivedToken: string
 ): Promise<{ accessToken: string; expiresIn: number }> {
-  // The Instagram Login token endpoints live at the unversioned Graph host.
-  // Unlike account and media endpoints, `/vXX.X/access_token` is rejected
-  // (for example: "Unsupported request ... /v25.0/access_token").
-  const response = await fetch("https://graph.instagram.com/access_token", {
-    // Meta now rejects GET on this endpoint for Instagram Login tokens. Keep
-    // the parameters server-side as a form body so neither token nor app
-    // secret appears in request URLs or logs.
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      grant_type: "ig_exchange_token",
-      client_secret: requireEnv("INSTAGRAM_APP_SECRET"),
-      access_token: shortLivedToken,
-    }).toString(),
-  });
+  const url = new URL("https://graph.instagram.com/access_token");
+  url.searchParams.set("grant_type", "ig_exchange_token");
+  url.searchParams.set("client_secret", requireEnv("INSTAGRAM_APP_SECRET"));
+  url.searchParams.set("access_token", shortLivedToken);
+
+  const response = await fetch(url.toString());
   const data = await handleResponse<TokenResponse>(response);
 
   return {
@@ -740,14 +734,11 @@ export async function getLongLivedToken(
 export async function refreshLongLivedToken(
   longLivedToken: string
 ): Promise<{ accessToken: string; expiresIn: number }> {
-  const response = await fetch("https://graph.instagram.com/refresh_access_token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      grant_type: "ig_refresh_token",
-      access_token: longLivedToken,
-    }).toString(),
-  });
+  const url = new URL("https://graph.instagram.com/refresh_access_token");
+  url.searchParams.set("grant_type", "ig_refresh_token");
+  url.searchParams.set("access_token", longLivedToken);
+
+  const response = await fetch(url.toString());
   const data = await handleResponse<TokenResponse>(response);
 
   return {
