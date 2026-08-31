@@ -565,9 +565,13 @@ export async function getUserInfo(
     "fields",
     "id,user_id,username,name,profile_picture_url,followers_count"
   );
-  url.searchParams.set("access_token", accessToken);
 
-  const response = await fetch(url.toString());
+  const response = await fetch(url.toString(), {
+    // Instagram Login tokens are accepted here as a Bearer token. Supplying
+    // them in the query string makes the profile lookup appear as an
+    // unsupported request for this flow.
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
   return handleResponse<InstagramUser>(response);
 }
 
