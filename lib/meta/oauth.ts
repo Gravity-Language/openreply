@@ -90,7 +90,7 @@ export function getAuthorizationUrl(redirectUri: string, state: string): string 
 export async function exchangeCodeForToken(
   code: string,
   redirectUri: string
-): Promise<{ accessToken: string; userId: string }> {
+): Promise<{ accessToken: string; userId: string; expiresIn: number }> {
   const body = new URLSearchParams({
     client_id: requireEnv("INSTAGRAM_APP_ID"),
     client_secret: requireEnv("INSTAGRAM_APP_SECRET"),
@@ -116,6 +116,13 @@ export async function exchangeCodeForToken(
   return {
     accessToken: data.access_token,
     userId: String(data.user_id),
+    // Instagram Login returns the token lifetime alongside the access token.
+    // Preserve Meta's value rather than assuming this is an old one-hour
+    // Basic Display token.
+    expiresIn:
+      typeof data.expires_in === "number" && data.expires_in > 0
+        ? data.expires_in
+        : 5184000,
   };
 }
 
