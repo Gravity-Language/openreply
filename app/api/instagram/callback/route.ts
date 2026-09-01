@@ -3,7 +3,11 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db/client";
 import { getBaseUrl } from "@/lib/env";
 import { canConnectInstagramAccount } from "@/lib/instagram-accounts";
-import { getUserInfo, subscribeInstagramAccountToWebhooks } from "@/lib/meta/client";
+import {
+  getLongLivedToken,
+  getUserInfo,
+  subscribeInstagramAccountToWebhooks,
+} from "@/lib/meta/client";
 import {
   encryptToken,
   exchangeCodeForToken,
@@ -43,13 +47,11 @@ export async function GET(request: NextRequest) {
 
   try {
     const redirectUri = `${baseUrl}/api/instagram/callback`;
-    const { accessToken, expiresIn, userId } = await exchangeCodeForToken(
+    const { accessToken: shortLivedToken, userId } = await exchangeCodeForToken(
       code,
       redirectUri
     );
-    // The current Instagram Login code exchange returns the usable token and
-    // its lifetime. A second `ig_exchange_token` call is a legacy flow and is
-    // rejected for these tokens by Meta.
+    const { accessToken, expiresIn } = await getLongLivedToken(shortLivedToken);
     const userInfo = await getUserInfo(accessToken, userId);
     // Webhooks and the messaging API key off the professional account ID
     // (user_id), not the app-scoped `id`. Store user_id so comment webhooks

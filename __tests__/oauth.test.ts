@@ -3,6 +3,7 @@ import {
   createOAuthState,
   decryptToken,
   encryptToken,
+  exchangeCodeForToken,
   verifyOAuthState,
 } from "../lib/meta/oauth";
 
@@ -29,5 +30,26 @@ describe("OAuth state and token encryption", () => {
   it("rejects tampered OAuth state", () => {
     const state = createOAuthState("workspace_123");
     expect(verifyOAuthState(`${state}tampered`)).toBeNull();
+  });
+
+  it("does not label a short-lived code-exchange token as valid for 60 days", async () => {
+    vi.stubEnv("INSTAGRAM_APP_ID", "app-id");
+    vi.stubEnv("INSTAGRAM_APP_SECRET", "app-secret");
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ access_token: "short-token", user_id: 123 }),
+        { status: 200 }
+      )
+    );
+
+    await expect(
+      exchangeCodeForToken("code", "https://example.com/callback")
+    ).resolves.toEqual({
+      accessToken: "short-token",
+      userId: "123",
+      expiresIn: undefined,
+    });
+
+    fetchMock.mockRestore();
   });
 });
