@@ -40,7 +40,11 @@ describe("getUserInfo", () => {
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(fetchMock.mock.calls[0]?.[0]).toContain("/oauth-id?");
-    expect(fetchMock.mock.calls[1]?.[0]).toContain("/me?");
+    expect(fetchMock.mock.calls[0]?.[0]).toContain(
+      "https://graph.instagram.com/oauth-id?"
+    );
+    expect(fetchMock.mock.calls[1]?.[0]).toContain(
+      "https://graph.instagram.com/me?"
+    );
   });
 });

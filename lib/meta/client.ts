@@ -1,10 +1,10 @@
 import { getMetaGraphApiVersion, requireEnv } from "@/lib/env";
 
 function instagramGraphBase() {
-  // Resource endpoints (profiles, media, comments and messages) use the
-  // versioned Instagram Graph API. Token exchange/refresh uses its own
-  // unversioned URLs below.
-  return `https://graph.instagram.com/${getMetaGraphApiVersion()}`;
+  // Instagram API with Instagram Login uses the unversioned Instagram Graph
+  // host. Versioned paths such as /v25.0/me are rejected for these tokens.
+  // Facebook Graph endpoints remain versioned separately below.
+  return "https://graph.instagram.com";
 }
 
 function facebookGraphBase() {
