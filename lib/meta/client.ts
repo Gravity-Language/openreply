@@ -555,24 +555,36 @@ export async function getUserInfo(
   accessToken: string,
   instagramUserId?: string
 ): Promise<InstagramUser> {
-  // Business Login returns the professional account ID with the OAuth code
-  // exchange. `/me` is not supported by that token type, so callers that have
-  // the ID should use it explicitly.
-  const url = new URL(
-    `${instagramGraphBase()}/${instagramUserId ?? "me"}`
-  );
-  url.searchParams.set(
-    "fields",
-    "id,user_id,username,name,profile_picture_url,followers_count"
-  );
+  const fetchProfile = async (identifier: string) => {
+    const url = new URL(`${instagramGraphBase()}/${identifier}`);
+    url.searchParams.set(
+      "fields",
+      "id,user_id,username,name,profile_picture_url,followers_count"
+    );
 
-  const response = await fetch(url.toString(), {
-    // Instagram Login tokens are accepted here as a Bearer token. Supplying
-    // them in the query string makes the profile lookup appear as an
-    // unsupported request for this flow.
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-  return handleResponse<InstagramUser>(response);
+    const response = await fetch(url.toString(), {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    return handleResponse<InstagramUser>(response);
+  };
+
+  if (!instagramUserId) {
+    return fetchProfile("me");
+  }
+
+  try {
+    // Most Instagram Login exchanges return an ID that can be queried
+    // directly and is also the ID required by messaging and webhooks.
+    return await fetchProfile(instagramUserId);
+  } catch (error) {
+    // Meta occasionally returns an app-scoped OAuth ID that its resource
+    // endpoint cannot load (code 100/subcode 33). `/me` resolves the account
+    // from the token itself and is the supported compatibility path.
+    if (error instanceof MetaApiError && error.code === 100) {
+      return fetchProfile("me");
+    }
+    throw error;
+  }
 }
 
 const MEDIA_FIELDS =
