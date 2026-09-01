@@ -32,7 +32,7 @@ describe("OAuth state and token encryption", () => {
     expect(verifyOAuthState(`${state}tampered`)).toBeNull();
   });
 
-  it("does not label a short-lived code-exchange token as valid for 60 days", async () => {
+  it("uses the Instagram Login code-exchange token as a long-lived token", async () => {
     vi.stubEnv("INSTAGRAM_APP_ID", "app-id");
     vi.stubEnv("INSTAGRAM_APP_SECRET", "app-secret");
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
@@ -47,7 +47,7 @@ describe("OAuth state and token encryption", () => {
     ).resolves.toEqual({
       accessToken: "short-token",
       userId: "123",
-      expiresIn: undefined,
+      expiresIn: 5_184_000,
     });
 
     fetchMock.mockRestore();

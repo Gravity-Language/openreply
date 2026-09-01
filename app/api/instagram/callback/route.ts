@@ -4,7 +4,6 @@ import { prisma } from "@/lib/db/client";
 import { getBaseUrl } from "@/lib/env";
 import { canConnectInstagramAccount } from "@/lib/instagram-accounts";
 import {
-  getLongLivedToken,
   getUserInfo,
   subscribeInstagramAccountToWebhooks,
 } from "@/lib/meta/client";
@@ -47,11 +46,10 @@ export async function GET(request: NextRequest) {
 
   try {
     const redirectUri = `${baseUrl}/api/instagram/callback`;
-    const { accessToken: shortLivedToken, userId } = await exchangeCodeForToken(
+    const { accessToken, expiresIn, userId } = await exchangeCodeForToken(
       code,
       redirectUri
     );
-    const { accessToken, expiresIn } = await getLongLivedToken(shortLivedToken);
     const userInfo = await getUserInfo(accessToken, userId);
     // Webhooks and the messaging API key off the professional account ID
     // (user_id), not the app-scoped `id`. Store user_id so comment webhooks

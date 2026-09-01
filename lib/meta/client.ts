@@ -738,30 +738,6 @@ export async function getFollowerCountSeries(
   }
 }
 
-export async function getLongLivedToken(
-  shortLivedToken: string
-): Promise<{ accessToken: string; expiresIn: number }> {
-  // Instagram's token exchange endpoint rejects GET requests for current
-  // Instagram Login apps. Send the same parameters as form data instead.
-  const body = new URLSearchParams({
-    grant_type: "ig_exchange_token",
-    client_secret: requireEnv("INSTAGRAM_APP_SECRET"),
-    access_token: shortLivedToken,
-  });
-
-  const response = await fetch("https://graph.instagram.com/access_token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: body.toString(),
-  });
-  const data = await handleResponse<TokenResponse>(response);
-
-  return {
-    accessToken: data.access_token,
-    expiresIn: data.expires_in ?? 5184000,
-  };
-}
-
 export async function refreshLongLivedToken(
   longLivedToken: string
 ): Promise<{ accessToken: string; expiresIn: number }> {
