@@ -65,13 +65,17 @@ describe("getLongLivedToken", () => {
       expiresIn: 5_184_000,
     });
 
-    const requestedUrl = new URL(String(fetchMock.mock.calls[0]?.[0]));
-    expect(requestedUrl.origin + requestedUrl.pathname).toBe(
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
       "https://graph.instagram.com/access_token"
     );
-    expect(requestedUrl.searchParams.get("grant_type")).toBe(
-      "ig_exchange_token"
-    );
-    expect(requestedUrl.searchParams.get("access_token")).toBe("short-token");
+    const request = fetchMock.mock.calls[0]?.[1];
+    expect(request?.method).toBe("POST");
+    expect(request?.headers).toEqual({
+      "Content-Type": "application/x-www-form-urlencoded",
+    });
+    const body = new URLSearchParams(String(request?.body));
+    expect(body.get("grant_type")).toBe("ig_exchange_token");
+    expect(body.get("client_secret")).toBe("app-secret");
+    expect(body.get("access_token")).toBe("short-token");
   });
 });
